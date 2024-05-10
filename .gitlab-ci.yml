@@ -30,7 +30,6 @@ deploy_dev:
  - dpl --provider=heroku --app=vel-ci-api-dev --api-key=$HEROKU_API_KEY
  environment:
  name: dev
- #url: https://vel-ci-api-dev.herokuapp.com
  only:
  - master
  tags:
@@ -46,7 +45,6 @@ deploy_staging:
  - dpl --provider=heroku --app=vel-ci-api-stg --api-key=$HEROKU_API_KEY
  environment:
  name: staging
- #url: https://vel-ci-api-stg.herokuapp.com
  only:
  - master
  tags:
