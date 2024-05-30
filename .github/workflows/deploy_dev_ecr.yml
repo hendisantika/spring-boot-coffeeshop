@@ -1,0 +1,264 @@
+name: Deploy Dev AWS ECR
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [ master ]
+
+env:
+  IMAGE_TAG: ${{ github.run_number }}
+  CONTAINER_NAME: coffee-shop
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ github.actor }}/coffee-shop:$IMAGE_TAG
+  ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO }}
+  #  ECR_REPOSITORY: coffee-shop
+
+  AWS_ECR_REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
+
+jobs:
+  project-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'corretto'
+
+      - name: Set up the Maven dependencies caching
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Install Maven dependencies
+        run: mvn clean install
+
+      - name: Run tests
+        run: mvn clean --batch-mode --update-snapshots verify
+
+      - name: Build jar file
+        run: mvn clean -B package --file pom.xml
+
+  docker-build:
+    if: ${{ github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    needs:
+      - project-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log into the Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Scrape build info
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: hendisantika/coffee-shop:${{ github.run_number }}
+          build-args: |
+            GIT_VERSION_TAG=${{ env.RELEASE_VERSION }}
+            GIT_COMMIT_MESSAGE=${{ github.event.head_commit.message }}
+            GIT_VERSION_HASH=${{ github.sha }}
+
+  push-to-ecr:
+    runs-on: ubuntu-latest
+    needs: project-build
+    env:
+      IMAGE_TAG: ${{ github.run_number }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: docker build -t coffee-shop:$IMAGE_TAG .
+
+      - name: Push to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-pf-aws-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{secrets.AWS_ECR_REPO}}
+          IMAGE_TAG: ${{ github.run_number }}
+        id: ecr
+        uses: jwalton/gh-ecr-push@v2
+        with:
+          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.AWS_ACCESS_SECRET_KEY }}
+          region: ${{ secrets.AWS_REGION }}
+          image: coffee-shop:$IMAGE_TAG
+
+  deploy:
+    needs: push-to-ecr
+    name: deploy image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      #      - name: install ssh keys
+      #        #         check this thread to understand why its needed:
+      #        #         <https://stackoverflow.com/a/70447517>
+      #        run: |
+      #          echo "${{ secrets.SERVER_KEY }}"
+      #          install -m 600 -D /dev/null ~/.ssh/id_rsa
+      #          echo "${{ secrets.SERVER_KEY }}" > ~/.ssh/id_rsa
+      #          ssh-keyscan -H ${{ secrets.SERVER_HOST }} > ~/.ssh/known_hosts
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ACCESS_SECRET_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: private
+
+      - name: Add Server key
+        run: |
+          touch key.txt && echo "${{ secrets.SERVER_KEY }}" > key.txt
+          chmod 600 key.txt
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+
+      - name: Deploy the application
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_USER: ${{ secrets.SERVER_USERNAME }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: coffee-shop
+          IMAGE_TAG: ${{ github.run_number }}
+        run: |
+          set -e
+          ./deploy.sh
+
+      #      - name: Deploy
+      #        uses: appleboy/ssh-action@v1.0.3
+      #        with:
+      #          host: ${{ secrets.SERVER_HOST }}
+      #          username: ${{ secrets.SERVER_USERNAME }}
+      #          password: ${{ secrets.SERVER_PASSWORD }}
+      #          key: ${{ secrets.SERVER_KEY }}
+      #          port: ${{ secrets.SERVER_PORT}}
+      #          passphrase: ${{ secrets.SERVER_PASSPHRASE }}
+      #          envs: AWS_ECR_REGISTRY, ECR_REPOSITORY, IMAGE_TAG
+      #          script: |
+      #            set -e
+      #            cd /home/mhdcdev/test/coffee-shop
+      #            ./build.sh
+
+      #      - name: Pull & Run Amazon ECR Image
+      #        id: pull-ecr
+      #        uses: chris5451/aws-ecr-run-image@main
+      #        with:
+      #          access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #          secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #          account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+      #          repo: coffee-shop
+      #          region: ${{ secrets.AWS_REGION }}
+      #          tag: ${{ github.run_number }}
+      #          name: coffee-shop
+      #          port: 9120
+
+      #      - name: Docker pull & run from github
+      #        uses: appleboy/ssh-action@master
+      #        env:
+      #          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      #        with:
+      #          host: ${{ secrets.SERVER_HOST }}
+      #          username: ${{ secrets.SERVER_USERNAME }}
+      #          password: ${{ secrets.SERVER_PASSWORD }}
+      #          port: 2280
+      #          key: ${{ secrets.WORKFLOW_ACTION_TOKEN_2024 }}
+      #          passphrase: ${{ secrets.SERVER_PASSPHRASE }}
+      #          envs: ECR_REGISTRY, CONTAINER_NAME, IMAGE_TAG
+      #          allenvs: true
+      #          script: |
+      #            echo "ECR_REGISTRY ->  $ECR_REGISTRY"
+      #            echo "ECR_REPOSITORY -> $ECR_REPOSITORY"
+      #            echo "IMAGE_TAG -> $IMAGE_TAG"
+      #            echo "CONTAINER_NAME -> $CONTAINER_NAME"
+      #            docker system prune -af
+      #            docker stop $CONTAINER_NAME
+      #            docker rm $CONTAINER_NAME
+      #            docker pull 267023985114.dkr.ecr.ap-southeast-1.amazonaws.com/coffee-shop:$IMAGE_TAG
+      #            docker run -d --rm --name $CONTAINER_NAME -p 9102:9102 267023985114.dkr.ecr.ap-southeast-1.amazonaws.com/coffee-shop:$IMAGE_TAG
+      #      - name: Run Amazon ECR Image
+      #        env:
+      #          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      #          ECR_REPOSITORY: coffee-shop
+      #          IMAGE_TAG: ${{ github.run_number }}
+      #        run: |
+      #          docker system prune -af
+      #          docker stop $CONTAINER_NAME
+      #          docker rm $CONTAINER_NAME
+      #          docker run -d --rm --name $CONTAINER_NAME -p 9102:9102 $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      #      - name: Run Amazon ECR Image on VPS
+      #        uses: appleboy/ssh-action@master
+      #        env:
+      #          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      #          ECR_REPOSITORY: coffee-shop
+      #          IMAGE_TAG: ${{ github.run_number }}
+      #        with:
+      #          host: ${{ secrets.SERVER_HOST }}
+      #          username: ${{ secrets.SERVER_USERNAME }}
+      #          password: ${{ secrets.SERVER_PASSWORD }}
+      #          port: 2280
+      #          key: ${{ secrets.WORKFLOW_ACTION_TOKEN_2024 }}
+      #          passphrase: ${{ secrets.SERVER_PASSPHRASE }}
+      #          script: |
+      #            docker system prune -af
+      #            docker stop $CONTAINER_NAME
+      #            docker rm $CONTAINER_NAME
+      #            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      #            docker run -d --rm --name $CONTAINER_NAME -p 9102:9102 $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+#      - name: Docker pull & run from github
+#        uses: appleboy/ssh-action@master
+#        env:
+#          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+#          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO }}
+#          IMAGE_TAG: ${{ github.run_number }}
+#        with:
+#          host: ${{ secrets.SERVER_HOST }}
+#          username: ${{ secrets.SERVER_USERNAME }}
+#          password: ${{ secrets.SERVER_PASSWORD }}
+#          port: 2280
+#          key: ${{ secrets.WORKFLOW_ACTION_TOKEN_2024 }}
+#          passphrase: ${{ secrets.SERVER_PASSPHRASE }}
+#          envs: ECR_REGISTRY, CONTAINER_NAME, IMAGE_TAG
+#          allenvs: true
+#          script: |
+#            docker system prune -af
+#            docker stop $CONTAINER_NAME
+#            docker rm $CONTAINER_NAME
+#            docker pull $ECR_REGISTRY/$CONTAINER_NAME:$IMAGE_TAG
+#            docker run -d --rm --name $CONTAINER_NAME -p 9102:9102 $ECR_REGISTRY/$CONTAINER_NAME:$IMAGE_TAG
