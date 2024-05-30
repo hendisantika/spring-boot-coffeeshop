@@ -1,4 +1,4 @@
-# Spring Boot Coffeshop
+# Spring Boot Coffee Shop
 
 Step by step Spring Boot, Hibernate CRUD Web Application tutorial
 
@@ -15,9 +15,6 @@ Home Page
 Order Page
 
 ![Order Page](img/order.png "Order Page")
-
-
-
 
 
 Source --> https://shakeelosmani.wordpress.com
