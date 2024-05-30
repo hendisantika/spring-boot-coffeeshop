@@ -49,15 +49,15 @@ public class OrdersController {
         customer.setLastName(lastName);
         customerRepository.save(customer);
         CustomerOrder customerOrder = new CustomerOrder();
-        customerOrder.setCustomer(customerRepository.findOne(customer.getCustomerId()));
+        customerOrder.setCustomer(customerRepository.findById(customer.getCustomerId()).get());
         Set<Product> productSet = new HashSet<Product>();
         for (Long productId:productIds){
-            productSet.add(productRepository.findOne(productId));
+            productSet.add(productRepository.findById(productId).get());
         }
         customerOrder.setProducts(productSet);
         Double total = 0.0;
         for (Long productId:productIds){
-            total = total + (productRepository.findOne(productId).getProductPrice());
+            total = total + (productRepository.findById(productId).get().getProductPrice());
         }
         customerOrder.setTotal(total);
         orderRepository.save(customerOrder);
@@ -68,7 +68,7 @@ public class OrdersController {
     @RequestMapping(value = "/removeorder", method = RequestMethod.POST)
     @ResponseBody
     public String removeOrder(@RequestParam Long Id){
-        orderRepository.delete(Id);
+        orderRepository.deleteById(Id);
         return Id.toString();
     }
 }

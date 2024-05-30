@@ -5,7 +5,11 @@ import com.hendisantika.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
  * Created by hendisantika on 24/12/16.
@@ -18,19 +22,19 @@ public class ProductsController {
     ProductRepository productRepository;
 
 
-    @RequestMapping("/product/{id}")
+    @GetMapping("/product/{id}")
     public String product(@PathVariable Long id, Model model){
-        model.addAttribute("product", productRepository.findOne(id));
+        model.addAttribute("product", productRepository.findById(id));
         return "product";
     }
 
-    @RequestMapping(value = "/products",method = RequestMethod.GET)
+    @GetMapping(value = "/products")
     public String productsList(Model model){
         model.addAttribute("products", productRepository.findAll());
         return "products";
     }
 
-    @RequestMapping(value = "/saveproduct", method = RequestMethod.POST)
+    @PostMapping(value = "/saveproduct")
     @ResponseBody
     public String saveProduct(@RequestBody Product product) {
         productRepository.save(product);
