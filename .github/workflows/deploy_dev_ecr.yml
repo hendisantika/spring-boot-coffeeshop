@@ -12,9 +12,9 @@ env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ github.actor }}/coffee-shop:$IMAGE_TAG
   ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO }}
-  #  ECR_REPOSITORY: coffee-shop
-
   AWS_ECR_REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
+  #  ECR_REPOSITORY: coffee-shop
+  ENV_DEV: ${{ vars.ENV_DEV }}
 
 jobs:
   project-build:
@@ -141,11 +141,32 @@ jobs:
         with:
           registry-type: private
 
+      - name: Pull environment form variable
+        run: |
+          echo "$ENV_DEV" > .env
+          printenv
+
+      - id: dotenv_github
+        name: Read dotenv file for github env
+        uses: falti/dotenv-action@v1.1.2
+        with:
+          path: '.env_github'
+          export-variables: true
+          log-variables: false
+          mask-variables: true
+          keys-case: 'bypass'
+
       - name: Add Server key
         run: |
           touch key.txt && echo "${{ secrets.SERVER_KEY }}" > key.txt
           chmod 600 key.txt
           install -m 600 -D /dev/null ~/.ssh/id_rsa
+
+      - name: Set ENV Variables
+        run: |
+          ssh $SERVER_USERNAME@$SERVER_HOST "echo $AWS_REGION=${{ secrets.AWS_REGION }}"
+          ssh $SERVER_USERNAME@$SERVER_HOST "echo $AWS_ECR_REGISTRY=${{ secrets.AWS_ECR_REGISTRY }}"
+          ssh $SERVER_USERNAME@$SERVER_HOST "echo $IMAGE_TAG=${{ secrets.IMAGE_TAG }}"
 
       - name: Deploy the application
         env:
