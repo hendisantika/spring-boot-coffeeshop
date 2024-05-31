@@ -3,10 +3,10 @@
 ssh -p "${SERVER_PORT}" "${SERVER_USERNAME}"@"${SERVER_HOST}" -i key.txt -t -t -o StrictHostKeyChecking=no << 'ENDSSH'
 cd /home/deployer/coffee-shop
 touch .env
-echo AWS_REGION=${{ secrets.AWS_REGION }} >> .env
+echo AWS_REGION=$AWS_REGION >> .env
 echo HENDI=HENDI >> .env
-echo AWS_ECR_REGISTRY=${{ secrets.AWS_ECR_REGISTRY }} >> .env
-echo IMAGE_TAG=${{secrets.IMAGE_TAG}}
+echo AWS_ECR_REGISTRY=$AWS_ECR_REGISTRY >> .env
+echo IMAGE_TAG=$IMAGE_TAG
 cat .env
 start=$(date +"%s")
 aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${AWS_ECR_REGISTRY}"

@@ -188,6 +188,9 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: coffee-shop
           IMAGE_TAG: ${{ github.run_number }}
+          CONTAINER_NAME: coffee-shop
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ECR_REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
         run: |
           set -e
           ./deploy.sh
