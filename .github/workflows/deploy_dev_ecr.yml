@@ -192,6 +192,11 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_ECR_REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
         run: |
+          echo AWS_REGION=$AWS_REGION >> .env
+          echo HENDI=HENDI >> .env
+          echo AWS_ECR_REGISTRY=$AWS_ECR_REGISTRY >> .env
+          echo IMAGE_TAG=$IMAGE_TAG >> .env
+          scp -P $SERVER_PORT ./.env $SERVER_USERNAME@$SERVER_HOST:~/coffee-shop
           set -e
           ./deploy.sh
 
