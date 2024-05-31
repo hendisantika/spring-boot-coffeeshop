@@ -150,7 +150,7 @@ jobs:
         name: Read dotenv file for github env
         uses: falti/dotenv-action@v1.1.2
         with:
-          path: '.env_github'
+          path: '.env'
           export-variables: true
           log-variables: false
           mask-variables: true
