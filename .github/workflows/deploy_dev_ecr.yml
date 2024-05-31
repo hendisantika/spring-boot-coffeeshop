@@ -161,12 +161,14 @@ jobs:
           touch key.txt && echo "${{ secrets.SERVER_KEY }}" > key.txt
           chmod 600 key.txt
           install -m 600 -D /dev/null ~/.ssh/id_rsa
+          mkdir -p ~/.ssh/ && touch ~/.ssh/known_hosts
+          ssh-keyscan ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
       - name: Set ENV Variables
         run: |
-          ssh $SERVER_USERNAME@$SERVER_HOST "echo $AWS_REGION=${{ secrets.AWS_REGION }}"
-          ssh $SERVER_USERNAME@$SERVER_HOST "echo $AWS_ECR_REGISTRY=${{ secrets.AWS_ECR_REGISTRY }}"
-          ssh $SERVER_USERNAME@$SERVER_HOST "echo $IMAGE_TAG=${{ secrets.IMAGE_TAG }}"
+          ssh $SERVER_USERNAME@$SERVER_HOST "echo AWS_REGION=${{ secrets.AWS_REGION }}"
+          ssh $SERVER_USERNAME@$SERVER_HOST "echo AWS_ECR_REGISTRY=${{ secrets.AWS_ECR_REGISTRY }}"
+          ssh $SERVER_USERNAME@$SERVER_HOST "echo IMAGE_TAG=${{ secrets.IMAGE_TAG }}"
 
       - name: Deploy the application
         env:
