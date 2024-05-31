@@ -151,7 +151,7 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
-          SERVER_USER: ${{ secrets.SERVER_USERNAME }}
+          SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: coffee-shop
           IMAGE_TAG: ${{ github.run_number }}
