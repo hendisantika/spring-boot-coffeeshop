@@ -196,6 +196,8 @@ jobs:
           echo HENDI=HENDI >> .env
           echo AWS_ECR_REGISTRY=$AWS_ECR_REGISTRY >> .env
           echo IMAGE_TAG=$IMAGE_TAG >> .env
+          echo CONTAINER_NAME=$CONTAINER_NAME >> .env
+          echo ECR_REPOSITORY=$ECR_REPOSITORY >> .env
           scp -P $SERVER_PORT ./.env $SERVER_USERNAME@$SERVER_HOST:~/coffee-shop
           set -e
           ./deploy.sh

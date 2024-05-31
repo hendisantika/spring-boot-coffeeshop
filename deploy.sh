@@ -5,12 +5,10 @@ cd /home/deployer/coffee-shop
 cat .env
 set +a
 source .env
-set -a
 start=$(date +"%s")
 aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${AWS_ECR_REGISTRY}"
 docker pull 267023985114.dkr.ecr.ap-southeast-1.amazonaws.com/coffee-shop:${IMAGE_TAG}
 
-CONTAINER_NAME=${ECR_REPOSITORY}
 if [ "$(docker ps -qa -f name=$CONTAINER_NAME)" ]; then
     if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
         echo "Container is running -> stopping it..."
