@@ -119,15 +119,6 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      #      - name: install ssh keys
-      #        #         check this thread to understand why its needed:
-      #        #         <https://stackoverflow.com/a/70447517>
-      #        run: |
-      #          echo "${{ secrets.SERVER_KEY }}"
-      #          install -m 600 -D /dev/null ~/.ssh/id_rsa
-      #          echo "${{ secrets.SERVER_KEY }}" > ~/.ssh/id_rsa
-      #          ssh-keyscan -H ${{ secrets.SERVER_HOST }} > ~/.ssh/known_hosts
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
