@@ -7,7 +7,7 @@ set +a
 source .env
 start=$(date +"%s")
 aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${AWS_ECR_REGISTRY}"
-docker pull 267023985114.dkr.ecr.ap-southeast-1.amazonaws.com/coffee-shop:${IMAGE_TAG}
+docker pull ${AWS_ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
 
 if [ "$(docker ps -qa -f name=$CONTAINER_NAME)" ]; then
     if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
@@ -16,7 +16,7 @@ if [ "$(docker ps -qa -f name=$CONTAINER_NAME)" ]; then
     fi
 fi
 
-docker run -d --rm -p 9102:9102 --name ${CONTAINER_NAME}  ${AWS_ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+docker run -d --rm -p 9100:9100 --name ${CONTAINER_NAME}  ${AWS_ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
 
 exit
 ENDSSH
